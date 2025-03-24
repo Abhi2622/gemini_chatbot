@@ -1,5 +1,5 @@
 name: gemini_chatbot
-description: "Gemini Chatbot is a Flutter package that integrates Google Gemini AI to create an AI-powered chatbot.It allows developers to customize the UI, use predefined trained responses, and easily integrate the chatbot into their applications."
+description: "Gemini Chatbot is a Flutter package that integrates Google Gemini AI to create an AI-powered chatbot.use predefined trained responses, and easily integrate the chatbot into their applications."
 version: 0.0.1
 homepage: https://github.com/Abhi2622/gemini_chatbot
 
