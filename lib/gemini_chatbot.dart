@@ -1,9 +1,5 @@
-library gemini_chatbot;
-
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:google_generative_ai/google_generative_ai.dart';
 
 class GeminiChatbot extends StatefulWidget {
   final String apiKey;
@@ -23,53 +19,71 @@ class GeminiChatbot extends StatefulWidget {
 }
 
 class _GeminiChatbotState extends State<GeminiChatbot> {
+  late final GenerativeModel _model;
   List<Map<String, String>> messages = [];
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _model =
+        GenerativeModel(model: 'gemini-1.5-pro-latest', apiKey: widget.apiKey);
+  }
 
   Future<void> sendMessage(String message) async {
+    if (message.trim().isEmpty) return;
+
     setState(() {
       messages.add({"role": "user", "text": message});
+      _isLoading = true;
     });
 
     String response =
-        widget.trainedData?[message] ?? await fetchGeminiResponse(message);
+        widget.trainedData?[message] ?? await _fetchGeminiResponse(message);
 
     setState(() {
       messages.add({"role": "bot", "text": response});
+      _isLoading = false;
     });
+
+    _scrollToBottom();
   }
 
-  Future<String> fetchGeminiResponse(String query) async {
-    final url = Uri.parse('https://api.gemini.com/v1/chat');
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer ${widget.apiKey}',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({'prompt': query}),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['response'] ?? "I don't know the answer to that.";
-    } else {
-      return "Error: Unable to fetch response.";
+  Future<String> _fetchGeminiResponse(String query) async {
+    try {
+      final content = Content.text(query);
+      final response = await _model.generateContent([content]);
+      return response.text ?? "No response received.";
+    } catch (e) {
+      return "Error: $e";
     }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return widget.customUI != null
         ? widget.customUI!(context, messages, sendMessage)
-        : defaultChatUI();
+        : _defaultChatUI();
   }
 
-  Widget defaultChatUI() {
+  Widget _defaultChatUI() {
     return Column(
       children: [
         Expanded(
           child: ListView.builder(
+            controller: _scrollController,
             itemCount: messages.length,
             itemBuilder: (context, index) {
               final message = messages[index];
@@ -85,8 +99,9 @@ class _GeminiChatbotState extends State<GeminiChatbot> {
             },
           ),
         ),
+        if (_isLoading) LinearProgressIndicator(),
         Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(20),
           child: Row(
             children: [
               Expanded(
